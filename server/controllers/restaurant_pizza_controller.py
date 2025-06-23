@@ -1,40 +1,46 @@
 from flask import Blueprint, request, jsonify
-from ..app import db
+from ..models import db
 from ..models.restaurant_pizza import RestaurantPizza
 from ..models.pizza import Pizza
 from ..models.restaurant import Restaurant
 
-bp = Blueprint('restaurant_pizza_controller', __name__)
+restaurant_pizza_bp = Blueprint('restaurant_pizza_controller', __name__)
 
-@bp.route('/restaurant_pizzas', methods=['POST'])
+@restaurant_pizza_bp.route('/restaurant_pizzas', methods=['POST'])
 def create_restaurant_pizza():
     data = request.get_json()
+
     price = data.get('price')
+    pizza_id = data.get('pizza_id')
+    restaurant_id = data.get('restaurant_id')
 
+    errors = []
     if not (1 <= price <= 30):
-        return jsonify({"errors": ["Price must be between 1 and 30"]}), 400
+        errors.append("Price must be between 1 and 30")
 
-    new_rp = RestaurantPizza(
-        price=price,
-        pizza_id=data['pizza_id'],
-        restaurant_id=data['restaurant_id']
-    )
-    db.session.add(new_rp)
+    if errors:
+        return jsonify({"errors": errors}), 400
+
+    rp = RestaurantPizza(price=price, pizza_id=pizza_id, restaurant_id=restaurant_id)
+    db.session.add(rp)
     db.session.commit()
 
+    pizza = Pizza.query.get(pizza_id)
+    restaurant = Restaurant.query.get(restaurant_id)
+
     return jsonify({
-        "id": new_rp.id,
-        "price": new_rp.price,
-        "pizza_id": new_rp.pizza_id,
-        "restaurant_id": new_rp.restaurant_id,
-        "pizza": {
-            "id": new_rp.pizza.id,
-            "name": new_rp.pizza.name,
-            "ingredients": new_rp.pizza.ingredients
+        'id': rp.id,
+        'price': rp.price,
+        'pizza_id': rp.pizza_id,
+        'restaurant_id': rp.restaurant_id,
+        'pizza': {
+            'id': pizza.id,
+            'name': pizza.name,
+            'ingredients': pizza.ingredients
         },
-        "restaurant": {
-            "id": new_rp.restaurant.id,
-            "name": new_rp.restaurant.name,
-            "address": new_rp.restaurant.address
+        'restaurant': {
+            'id': restaurant.id,
+            'name': restaurant.name,
+            'address': restaurant.address
         }
     }), 201
